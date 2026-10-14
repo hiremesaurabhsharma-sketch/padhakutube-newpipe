@@ -36,6 +36,7 @@
       this.root.replaceChildren();
       if(audio){const cover=document.createElement('img');cover.className='audio-cover';cover.src=poster;cover.alt='';cover.onerror=()=>cover.hidden=true;this.root.append(cover);}
       this.root.append(media);
+      if('mediaSession' in navigator){for(const [action,handler] of Object.entries({play:()=>this.play(),pause:()=>this.pause(),seekbackward:()=>this.seek(this.time()-10),seekforward:()=>this.seek(this.time()+10),seekto:e=>this.seek(e.seekTime)})){try{navigator.mediaSession.setActionHandler(action,handler);}catch{}}}
       for(const c of captions.filter(c=>c.format==='vtt'&&/^https:\/\//.test(c.url||''))) {const track=document.createElement('track');track.kind='subtitles';track.src=c.url;track.srclang=c.language;track.label=c.name;media.append(track);}
       media.addEventListener('loadedmetadata',()=>{if(this.destroyed)return;if(start>0&&start<media.duration)media.currentTime=start;this.ready=true;this.onReady();});
       media.addEventListener('ended',()=>this.onEnd());media.addEventListener('error',()=>this.onError('This media source cannot play in this browser. Try a different quality or open the original.'));
@@ -55,7 +56,7 @@
     volume(n){if(this.media)this.media.volume=n;else this.yt?.setVolume?.(n*100);}
     async pip(){if(!this.media||this.kind==='audio'||!document.pictureInPictureEnabled)throw Error('Picture-in-picture is available for supported direct videos.');if(document.pictureInPictureElement)await document.exitPictureInPicture();else await this.media.requestPictureInPicture();}
     async fullscreen(){await this.root.requestFullscreen?.();}
-    destroy(){this.destroyed=true;clearInterval(this.timer);this.hls?.destroy();try{this.yt?.destroy();}catch{}if(this.media){this.media.pause();this.media.removeAttribute('src');this.media.load();}this.root.replaceChildren();}
+    destroy(){this.destroyed=true;clearInterval(this.timer);if('mediaSession' in navigator)for(const a of ['play','pause','seekbackward','seekforward','seekto']){try{navigator.mediaSession.setActionHandler(a,null);}catch{}}this.hls?.destroy();try{this.yt?.destroy();}catch{}if(this.media){this.media.pause();this.media.removeAttribute('src');this.media.load();}this.root.replaceChildren();}
   }
   window.PadhakuPlayer=Player;
 })();
