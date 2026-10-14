@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: padhakutube-newpipe
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: ALLOWED_ORIGIN
+        value: https://padhakutube-watch.bushyball.chatgpt.site
+      - key: JAVA_OPTS
+        value: -Xms64m -Xmx320m

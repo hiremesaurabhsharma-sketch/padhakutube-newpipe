@@ -1,0 +1,9 @@
+plugins { id 'application' }
+repositories { mavenCentral(); maven { url 'https://jitpack.io' } }
+dependencies {
+    implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.26.5'
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'org.jsoup:jsoup:1.22.2'
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+application { mainClass = 'app.Main' }
