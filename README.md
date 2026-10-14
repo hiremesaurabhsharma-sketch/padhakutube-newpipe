@@ -1,45 +1,58 @@
 # PadhakuTube
 
-YouTube-style video discovery and viewing interface with a NewPipeExtractor Java API.
+A NewPipeExtractor-backed media browser with study tools. The frontend is hosted at https://padhakutube-watch.bushyball.chatgpt.site and the backend at https://padhakutube-newpipe.onrender.com.
 
 ## Features
-- Live video search with pagination, channel pages, related videos and read-only YouTube comments.
-- Direct combined-stream playback with quality/speed controls and a byte-range media proxy. Embedded YouTube playback remains an explicit fallback.
-- Home discovery by topic, mobile layout, light/dark appearance, full watch pages, theater mode and share links.
-- Browser-local watch history, watch later, liked videos, subscriptions and custom playlists. These actions do not modify a YouTube account.
+- NewPipeExtractor v0.26.5: YouTube, SoundCloud, Bandcamp, PeerTube and media.ccc.de search, source-specific filters, suggestions, discovery feeds, public playlists, channels/tabs and pagination where supported by the source.
+- Direct video/audio and HLS playback for supported unrestricted media sources; quality selection, playback speed, seek, volume, full screen and browser-supported PiP.
+- Official YouTube IFrame API playback and controls. This server has encountered a YouTube login/bot-verification block, so direct YouTube extraction and comments are disabled and return a structured 503 without contacting YouTube. No cookies, alternate clients, IP rotation or verification bypass is implemented.
+- Study notes with timestamps, note export, A–B segment repeat, focus mode, sleep timer and resume position.
+- Play queue, reordering, remove/clear, opt-in automatic next item, local history/liked/watch-later/subscriptions/playlists.
+- Versioned library backup/restore, NewPipe subscriptions JSON import/export.
+- Local media files (never uploaded) and user-supplied HTTPS MP4/WebM/audio/HLS sources.
+- Source-provided captions (WebVTT) and chapters when extraction succeeds. Original-source links remain available.
 
-## Deploy
-The frontend is served by Sites from `dist/`. The Java service is deployed separately using `backend/Dockerfile` or the provided Render Blueprint.
+## Runtime
+The buildless frontend is in `dist/`. Scripts are loaded in this order: HLS library, player adapter, config, base UI, extended features. The frontend capability-checks `/api/health`; v2 backends keep YouTube search and local study features, while v3 enables the five-source catalogue.
+
+The Java 21 backend uses `backend/Dockerfile`. Build locally:
 
 ```sh
 cd backend
-docker build -t padhakutube-api .
-docker run --rm -p 8080:8080 \
-  -e ALLOWED_ORIGIN=https://padhakutube-watch.bushyball.chatgpt.site \
-  -e JAVA_OPTS='-Xms64m -Xmx320m' padhakutube-api
+gradle --no-daemon installDist
 ```
 
-Set the deployed HTTPS API origin in `dist/config.js` for all visitors, or configure it under Settings for a single browser. ALLOWED_ORIGIN must match the frontend origin exactly. `PORT` defaults to 8080 and is read from the hosting environment.
+Docker:
 
-Render: free plan, Singapore region, Docker context `backend`, Dockerfile `backend/Dockerfile`, health check `/api/health`. A free service may sleep when idle; the client allows a longer initial connection timeout. An always-running paid tier is not enabled automatically.
+```sh
+docker build -t padhakutube-api backend
+docker run --rm -p 8080:8080 -e ALLOWED_ORIGIN=https://padhakutube-watch.bushyball.chatgpt.site padhakutube-api
+```
 
-## API
-- `/api/health`: engine, version, capabilities.
-- `/api/search?q=`: video search, returns opaque continuation cursor.
-- `/api/more?cursor=`: pagination; cursors expire after ten minutes.
-- `/api/stream?id=`: video metadata, related videos, combined streams.
-- `/api/comments?id=`: read-only comments.
-- `/api/channel?url=`: channel metadata and videos, restricted to YouTube channel URLs.
-- `/api/media?token=`: byte-range video proxy for server-issued opaque tokens. It accepts no arbitrary URL and validates Google Video hosts on every redirect. Tokens expire after fifteen minutes.
+Render uses Docker context `backend`, Dockerfile `backend/Dockerfile`, free plan, Singapore, and health endpoint `/api/health`. `PORT` defaults to 8080. `JAVA_OPTS=-Xms64m -Xmx320m` is appropriate for the configured free instance. A free instance may sleep; the frontend allows a 65-second request timeout.
 
-All routes support the configured frontend CORS origin. There are bounded extraction/media concurrency limits, a bounded request queue, and short in-memory caches. Apply deployment-level rate limits before broad public use. CORS is not authentication.
+`PEERTUBE_ORIGIN` defaults to `https://framatube.org`. It is an administrator-configured HTTPS origin; arbitrary user-supplied PeerTube hosts are not accepted. Federated results hosted elsewhere may require opening the original source. `ALLOWED_ORIGIN` must match the frontend origin exactly. CORS is not authentication; add appropriate rate limits before broad public use.
+
+## API v3
+`service` accepts `youtube`, `soundcloud`, `bandcamp`, `peertube`, `mediaccc` (default `youtube`).
+- `/api/health`: version/capabilities.
+- `/api/services`: source names, filters, sorts, feeds and playback capabilities.
+- `/api/search?q=&service=&filter=&sort=`
+- `/api/suggest?q=&service=`
+- `/api/kiosk?service=&id=`
+- `/api/channel?service=&url=` and `/api/tab?token=`
+- `/api/playlist?service=&url=`
+- `/api/stream?service=&url=`: combined video, audio, captions, chapters, related media, HLS/DASH metadata.
+- `/api/comments?service=&url=`: read-only where supported.
+- `/api/more?cursor=`: server-issued pagination cursor, expires in ten minutes.
+- `/api/media?token=`: retained legacy Google Video proxy; no new YouTube tokens are issued by v3.
+
+Source URLs are validated against the selected service; pagination and tab tokens are generated on the server. Concurrency, queues and cache sizes are bounded. No Google cookies, passwords, or API keys are needed by this implementation.
 
 ## Limits
-No uploads, YouTube account sign-in, posting comments, account-level likes/subscriptions, adaptive audio/video merging, Shorts feed, or recommendation algorithm are implemented. The homepage uses a discovery search, not a personalized YouTube feed. Only browser-compatible combined streams are selected for direct playback. Upstream restrictions, datacenter blocking, expiring media URLs and extractor changes can affect playback. Embedded playback can include ads and may be disabled by the uploader. No restriction or CAPTCHA bypass is implemented.
+This is not the complete Android NewPipe app. It has no YouTube account login, upload, posting comments, YouTube account likes/subscriptions, Android background service, offline download manager, adaptive video/audio muxing, or personalized YouTube recommendation feed. DASH metadata is exposed but the frontend currently plays MP4/WebM/audio/HLS only. Caption availability depends on WebVTT format and source CORS. Quality choices reflect actual extracted streams, not promised 4K.
 
-When no backend is configured, the frontend clearly identifies its curated collection. It never represents local filtering as live search.
-
-See VALIDATION.md for actual test outcomes and deployment limitations.
+An Android background service cannot be reproduced by a browser tab; media and sleep timers may be suspended by the OS. PiP depends on browser support. Embedded playback can show ads and can be disabled by a video owner. Browser rendering and end-to-end playback require a real browser check; see VALIDATION.md for verified results.
 
 ## License
-GPL-3.0-or-later. NewPipeExtractor is GPL-3.0-or-later, copyright its contributors. This project is not affiliated with YouTube or Team NewPipe. Full source is available from the website's source download. Include corresponding source and license notices when redistributing builds.
+Project: GPL-3.0-or-later. NewPipeExtractor: GPL-3.0-or-later, its contributors. HLS.js: Apache-2.0; version and license are in `dist/vendor/`. The site includes corresponding project source as `dist/source.zip`. Not affiliated with YouTube or Team NewPipe.
