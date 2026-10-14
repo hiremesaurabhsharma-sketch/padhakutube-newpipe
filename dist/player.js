@@ -30,7 +30,7 @@
           onStateChange:e=>{if(e.data===0)this.onEnd();},onError:e=>this.onError(e.data===101||e.data===150?'The creator has disabled embedded playback. Open the original video.':e.data===153?'The video provider could not identify this player. Open the original video.':'This video cannot play here. Open it on YouTube.')}});
       } catch(e){if(!this.destroyed)this.onError(e.message);}
     }
-    native(url,{audio=false,poster='',captions=[],start=0}={}) {
+    native(url,{audio=false,poster='',captions=[],start=0,mimeType=''}={}) {
       this.kind=audio?'audio':'video';const media=document.createElement(audio?'audio':'video');this.media=media;
       media.controls=true;media.preload='metadata';media.playsInline=true;if(!audio)media.poster=poster;
       this.root.replaceChildren();
@@ -40,7 +40,7 @@
       for(const c of captions.filter(c=>c.format==='vtt'&&/^https:\/\//.test(c.url||''))) {const track=document.createElement('track');track.kind='subtitles';track.src=c.url;track.srclang=c.language;track.label=c.name;media.append(track);}
       media.addEventListener('loadedmetadata',()=>{if(this.destroyed)return;if(start>0&&start<media.duration)media.currentTime=start;this.ready=true;this.onReady();});
       media.addEventListener('ended',()=>this.onEnd());media.addEventListener('error',()=>this.onError('This media source cannot play in this browser. Try a different quality or open the original.'));
-      if(/\.m3u8(?:\?|$)/i.test(url)&&!media.canPlayType('application/vnd.apple.mpegurl')) {
+      if((/\.m3u8(?:\?|$)/i.test(url)||/mpegurl/i.test(mimeType))&&!media.canPlayType('application/vnd.apple.mpegurl')) {
         if(window.Hls?.isSupported()){this.hls=new Hls({maxBufferLength:30});this.hls.loadSource(url);this.hls.attachMedia(media);this.hls.on(Hls.Events.ERROR,(_,e)=>{if(e.fatal)this.onError('The HLS stream is unavailable. Open the original source.');});}
         else this.onError('HLS playback is not supported by this browser.');
       } else media.src=url;
